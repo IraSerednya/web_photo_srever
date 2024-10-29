@@ -1,0 +1,2 @@
+archive/images_archive.zip filter=lfs diff=lfs merge=lfs -text
+.git.rar filter=lfs diff=lfs merge=lfs -text
