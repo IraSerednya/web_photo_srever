@@ -1,20 +1,8 @@
 [
   {
-    "login": "iraseredna",
-    "password": "$2b$10$Hvid19bWZjfBSMoQ843bSeKY0x7XAbaxdyGWnvQu.zGyCBwINpQbK",
-    "name": "Ira",
-    "email": "iraseredna44@gmail.com"
-  },
-  {
-    "login": "iraseredna",
-    "password": "$2b$10$Hvid19bWZjfBSMoQ843bSeKY0x7XAbaxdyGWnvQu.zGyCBwINpQbK",
-    "name": "Ira",
-    "email": "iraseredna44@gmail.com"
-  },
-  {
-    "login": "iraseredna",
-    "password": "$2b$10$Hvid19bWZjfBSMoQ843bSeKY0x7XAbaxdyGWnvQu.zGyCBwINpQbK",
-    "name": "Ira",
-    "email": "iraseredna44@gmail.com"
+    "email": "serednii@gmail.com",
+    "password": "$2b$10$AeNxmkgBP3raTSce.2za.ugHT7ogz40X5gyJnWM3TweAYogiG0L8C",
+    "name": "mykola",
+    "role": "user"
   }
 ]

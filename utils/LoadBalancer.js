@@ -1,7 +1,7 @@
 const { sendData } = require("./sendData")
 const path = require('path');
 const fs = require('fs');
-const { deleteDirectory, deleteArchive } = require('./deleteFilesInDirectory');
+const {  deleteArchive } = require('./deleteFilesInDirectory');
 const { archivePath, archiveDir } = require('./const');
 const { urlWorkServer, pauseSend } = require('./const');
 const { ServerPorts } = require('./ServerPorts');
@@ -9,7 +9,7 @@ const { archiveFromBuffers } = require('./archiveImagesBuffer');
 
 let flag = 0
 let knacked = false
-class CallServer {
+class LoadBalancer {
 
     static process = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -84,7 +84,7 @@ class CallServer {
                 if (res) {
                     // console.log('33333333333333333333333333333333333333333333333333 ' + this.indexProcess)
 
-                    // CallServer.process[this.indexProcess]++;
+                    // LoadBalancer.process[this.indexProcess]++;
                     this.dataQueryId.processedImages.push({ res, name: res[0].fileName })
 
                     this.dataQueryId.progress += 1;
@@ -131,7 +131,7 @@ class CallServer {
         try {
 
             this.dataQueryId.isServersTrue.pop()
-            // console.log('CallServer.isServersTrue[this.idQuery]', this.dataQueryId.isServersTrue)
+            // console.log('LoadBalancer.isServersTrue[this.idQuery]', this.dataQueryId.isServersTrue)
             const { finish } = this.generatorData.nextFormData()
 
             if (this.dataQueryId.isServersTrue.length === 0) {
@@ -168,9 +168,9 @@ class CallServer {
                 this.dataQueryId.processingStatus = "downloading"
                 this.res.json({ processedImages: this.dataQueryId.processedImages, downloadLink });
 
-                // console.log('CallServer.process', CallServer.process)
+                // console.log('LoadBalancer.process', LoadBalancer.process)
                 // console.log('this.dataQueryId.processedImages', this.dataQueryId.processedImages.length)
-                // CallServer.process = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                // LoadBalancer.process = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
                 // console.log('url', downloadLink)
             }
         } catch (error) {
@@ -179,4 +179,4 @@ class CallServer {
     }
 }
 
-module.exports = { CallServer };
+module.exports = { LoadBalancer };

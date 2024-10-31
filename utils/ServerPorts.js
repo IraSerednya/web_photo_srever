@@ -1,31 +1,48 @@
+const NUMBER_FRI_PORTS = 20;
+const START_PORTS = 8100;
 
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+class ServerPorts {
+    static freePorts = [];
+    static errorPorts = [];
 
-async function sendData(workerServer, formData, controller, idProcess) {
-    try {
-        const response = await fetch(workerServer, {
-            method: 'POST',
-            body: formData,
-            headers: formData.getHeaders(),
-            signal: controller.signal, // Передаємо сигнал скасування
-        });
+    constructor(numberPorts) {
+        this.numberPorts = numberPorts;
+        this.getFreePorts(numberPorts)
+    }
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Помилка ${response.status}: ${errorText}`);
-        }
+    getFreePorts(numberPorts) {
+        try {
 
-        const jsonResponse = await response.json();
-        return jsonResponse;
+            const lengthFreePort = ServerPorts.freePorts.length;
 
-    } catch (error) {
-        if (error.name === 'AbortError') {
-            console.warn('Запит було скасовано на робочому сервері');
-        } else {
-            console.error('Сталася помилка:', error.message);
+            if (lengthFreePort === 0) {
+                throw Error('Немає вільних серверів')
+            }
+            //забираємо потрібну кількість портів для процесу
+            const ports = ServerPorts.freePorts.splice(0, numberPorts);
+            this.ports = ports
+            this.length = ports.length
+            console.log('getFreePorts', ServerPorts.freePorts)
+        } catch (error) {
+            console.log('getFreePorts', error)
         }
     }
+
+
+    returnPorts() {
+        try {
+
+            ServerPorts.freePorts.push(...this.ports)
+            console.log("returnPorts", ServerPorts.freePorts)
+        } catch (error) {
+            console.log('returnPorts', error)
+        }
+    }
+
+    static generateFreePorts() {
+        ServerPorts.freePorts = Array.from({ length: NUMBER_FRI_PORTS }).map((_, i) => (START_PORTS + i))
+    }
+
 }
 
-
-module.exports = { sendData };
+module.exports = { ServerPorts };
