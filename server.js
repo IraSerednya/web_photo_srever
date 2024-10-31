@@ -1,11 +1,10 @@
-
-//sdfsfd
 const express = require('express');
 const multer = require('multer');
 const sharp = require('sharp');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 const { AbortController } = require('node-abort-controller');
 const EventEmitter = require('events');
@@ -13,13 +12,17 @@ const myEmitter = new EventEmitter();
 const { generatorFormData } = require("./utils/generatorFormData");
 const { generateNewServer } = require("./utils/generateNewServer");
 const { CallServer } = require("./utils/CallServer");
-const { archiveImages } = require("./utils/archiveImages");
+
 const { NUMBER_IMAGE_TO_SERVER, archiveDir, pauseSend, workerServers, numberServers, urlWorkServer } = require('./utils/const');
 const { deleteArchive } = require('./utils/deleteFilesInDirectory');
 const { ServerPorts } = require('./utils/ServerPorts');
 
+const USERS_FILE = path.join(__dirname, 'users.json');
 
+//генеруємо список вільниз портів
+// [ 8105, 8106, 8107, 8108, 8109, 8110, 8111, 8112,  8113, 8114, 8115, 8116, 8117, 8118, 8119]
 ServerPorts.generateFreePorts();
+
 // const numberServers1 = Math.ceil(20 / NUMBER_IMAGE_TO_SERVER);
 // const serverPorts = new ServerPorts(5);
 
@@ -28,22 +31,17 @@ console.log('ServerPorts.ports', ServerPorts.freePorts)
 // console.log('ServerPorts.ports', serverPorts.ports)
 
 // console.log('ServerPorts.ports', serverPorts.urlPorts)
-
-
-
 myEmitter.setMaxListeners(200); // Збільшуємо ліміт до 20
 
 const app = express();
 const port = 8000;
 const dataQuery = {}
 
-
 // Створимо директорію для збереження зображень, якщо вона не існує
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// console.log(workerServers)
 
 app.use(express.json());
 app.use(cors());
@@ -56,34 +54,27 @@ app.post('/upload-multiple', upload.array('images', 300), async (req, res) => {
             return res.status(400).send('Будь ласка, завантажте зображення');
         }
 
-
         if (!fs.existsSync(archiveDir)) {
             fs.mkdirSync(archiveDir);
         }
+
         const { idQuery } = req.body;
         dataQuery[idQuery].processingStatus = 'processing images';
-        // console.log('req.idQuery', idQuery)
-
-        // console.log(req.files[0])
         dataQuery[idQuery].total = req.files.length;
 
+        //буде видавати почерзі файли поки незакінчаться 
         const generatorData = generatorFormData(req)
-        const nextServer = generateNewServer(dataQuery[idQuery].serverPorts.urlPorts)
+
         // Використовуємо цикл `for...of` для послідовного завантаження
-
-        // console.log('nextFormData', nextFormData)
-
-        CallServer.isServersTrue[idQuery] = new Array(dataQuery[idQuery].serverPorts.length).fill('1')
 
         const dataForCallServer = {
             generatorData,
-            nextServer,
             dataQueryId: dataQuery[idQuery],
             res,
         }
 
         for (let i = 0; i < dataQuery[idQuery].serverPorts.length; i++) {
-            new CallServer(dataForCallServer, i);
+            new CallServer(dataForCallServer, dataQuery[idQuery].serverPorts.urlPorts[i], i);
         }
 
 
@@ -104,6 +95,7 @@ app.post('/init', (req, res) => {
         if (!numberImage || !idQuery || !urlMainServer) {
             res.status(400).send('неправильный, некорректный запрос.');
         }
+        //Вираховуємо кількість серверів в залежності від кількості файлів
         const numberServers = Math.ceil(numberImage / NUMBER_IMAGE_TO_SERVER);
         // console.log('numberServers', numberServers)
         const dataSend = {
@@ -119,22 +111,30 @@ app.post('/init', (req, res) => {
             dataSend.ports = serverPorts.ports.length;
             // console.log('serverPorts', serverPorts.ports);
 
-
             dataQuery[idQuery] = {
-                controller,
-                id: idQuery,
-                progress: 0,
-                total: 0,
-                processingStatus: 'unloading',
-                processedImages: [],
-                serverPorts,
-                flag: 0,
-                linkWorkServers: [],
+                controller,//Обєкт для преривання запиту
+                id: idQuery,//id процесу
+                progress: 0,//прогрес обробки даних (кількість оброблених файлів)
+                total: 0,//Загальна кількість файлів
+                processingStatus: 'unloading',// (unloading, processing images, archive images, downloading )
+                processedImages: [],//масив з обробленими файлами
+                serverPorts,//обєкт класу ServerPorts який має адреса портів [ 8100, 8101, 8102, 8103] і адреса серверів [
+                //     'http://localhost:8100/process-images',
+                //     'http://localhost:8101/process-images',
+                //     'http://localhost:8102/process-images',
+                //     'http://localhost:8103/process-images',
+                //     'http://localhost:8104/process-images'
+                //   ]
+                // flag: 0,//
+                linkWorkServers: [],//Обєкти запущених серверів пізніше будемо їх закривати
+                isServersTrue: [],
             }
-
+            //створюємо сервери
             createServers(serverPorts.ports, idQuery);
+
             setTimeout(() => {
                 try {
+                    dataQuery[idQuery].serverPorts.returnPorts();
                     dataQuery[idQuery].linkWorkServers.forEach(server => server.close(() => console.log(`Сервер  зупинено`)));
                     dataQuery[idQuery].linkWorkServers.length = 0;
                 } catch (error) {
@@ -145,6 +145,7 @@ app.post('/init', (req, res) => {
             urlWorkServer.url = urlMainServer
         } else {
             dataSend.ports = 0;
+            dataSend.message = 'Немає вільних серверів';
         }
 
 
@@ -182,9 +183,9 @@ app.post('/killer', (req, res) => {
     pauseSend.pause = parseInt(pause);
     console.log(pauseSend)
     // console.log('serverStopped')
-    // dataQuery[idQuery].linkWorkServers[0].close(() => {
-    //     console.log(`Сервер  зупинено`);
-    // })
+    dataQuery[idQuery].linkWorkServers[0].close(() => {
+        console.log(`Сервер  зупинено`);
+    })
     // linkWorkServers[1].close(() => {
     //     console.log(`Сервер  зупинено`);
     // })
@@ -258,6 +259,112 @@ app.listen(port, () => {
 });
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+// Ініціалізуємо файл, якщо він не існує
+if (!fs.existsSync(USERS_FILE)) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify([]));
+}
+
+// Функція для зчитування користувачів з файлу
+const readUsers = () => {
+    return JSON.parse(fs.readFileSync(USERS_FILE));
+};
+
+// Функція для запису користувачів у файл
+const writeUsers = (users) => {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+};
+// Ендпоінт для реєстрації
+app.post('/register', async (req, res) => {
+    try {
+        const { login, password, name, email } = req.body;
+
+        // Перевірка обов'язкових полів
+        if (!login || !password || !name || !email) {
+            return res.status(400).json({ message: 'Всі поля є обов’язковими' });
+        }
+
+        const users = readUsers();
+
+        // Перевірка, чи існує користувач з таким логіном
+        const userExists = users.some(user => user.login === login);
+        if (userExists) {
+            return res.status(400).json({ message: 'Користувач з таким логіном вже існує' });
+        }
+
+        // Хешування пароля
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Додаємо нового користувача
+        const newUser = { login, password: hashedPassword, name, email };
+        users.push(newUser);
+        writeUsers(users);
+
+        res.status(201).json({ message: 'Реєстрація успішна' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Помилка сервера' });
+    }
+});
+
+// Ендпоінт для входу
+app.post('/login', async (req, res) => {
+    try {
+        const { login, password } = req.body;
+
+        // Перевірка обов'язкових полів
+        if (!login || !password) {
+            return res.status(400).json({ message: 'Логін і пароль є обов’язковими' });
+        }
+
+        const users = readUsers();
+
+        // Знаходимо користувача за логіном
+        const user = users.find(user => user.login === login);
+        if (!user) {
+            return res.status(400).json({ message: 'Невірний логін або пароль' });
+        }
+
+        // Перевірка пароля
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
+        if (!isPasswordCorrect) {
+            return res.status(400).json({ message: 'Невірний логін або пароль' });
+        }
+
+        res.status(200).json({ message: 'Вхід успішний' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Помилка сервера' });
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Функція для створення сервера 
 function createServer(port, idQuery) {
     const app = express();
@@ -271,7 +378,7 @@ function createServer(port, idQuery) {
 
     // Функція обробки зображень
     const processImages = async (req, res) => {
-        // console.log('worker server worker server 111111111111111111111 ' + req.body.idProcess)
+        console.log('worker server worker server 111111111111111111111 ' + req.body.idProcess)
         try {
             if (!req.files || req.files.length === 0) {
                 return res.status(400).send('Будь ласка, завантажте зображення');

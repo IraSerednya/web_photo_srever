@@ -32,8 +32,10 @@ const archiveFromBuffers = async (buffers, archivePath) => {
 
         // Додаємо кожен буфер з масиву до архіву з унікальним ім'ям
         buffers.forEach((buffer, index) => {
+            const base64Data = buffer.res[0].imageBase64.replace(/^data:image\/jpeg;base64,/, '');
+            const imageBuffer = Buffer.from(base64Data, 'base64');
             const passThrough = new PassThrough();
-            passThrough.end(buffer.img);
+            passThrough.end(imageBuffer);
 
             // Додаємо файл до архіву з унікальним ім'ям
             archive.append(passThrough, { name: buffer.name });
@@ -42,18 +44,6 @@ const archiveFromBuffers = async (buffers, archivePath) => {
         archive.finalize(); // Завершуємо архівацію
     });
 };
-
-// Використання функції
-// const bufferData = Buffer.from('Це вміст файлу, який буде додано до архіву.', 'utf-8');
-// const archivePath = 'path/to/archive.zip';
-
-// archiveFromBuffer(bufferData, archivePath)
-//     .then((result) => {
-//         console.log('Архів успішно створено:', result);
-//     })
-//     .catch((error) => {
-//         console.error('Помилка при створенні архіву:', error);
-//     });
 
 
 module.exports = { archiveFromBuffers };

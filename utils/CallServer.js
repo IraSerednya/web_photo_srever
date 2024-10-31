@@ -1,29 +1,27 @@
 const { sendData } = require("./sendData")
 const path = require('path');
 const fs = require('fs');
-const { archiveImages } = require('./archiveImages');
 const { deleteDirectory, deleteArchive } = require('./deleteFilesInDirectory');
 const { archivePath, archiveDir } = require('./const');
 const { urlWorkServer, pauseSend } = require('./const');
 const { ServerPorts } = require('./ServerPorts');
 const { archiveFromBuffers } = require('./archiveImagesBuffer');
 
-// let flag = 0
-// let knacked = false
+let flag = 0
+let knacked = false
 class CallServer {
-    static isServersTrue = {};
+
     static process = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-    constructor({ generatorData, nextServer, dataQueryId, res, serverPorts }, indexProcess) {
+    constructor({ generatorData, dataQueryId, res }, workServer, indexProcess) {
         this.generatorData = generatorData;
-        this.nextServer = nextServer;
-        this.res = res;
         this.dataQueryId = dataQueryId;
+        this.res = res;
         this.idQuery = dataQueryId.id;
-        this.serverPorts = serverPorts;
         this.indexProcess = indexProcess;
+        this.workServer = workServer;
+        this.dataQueryId.isServersTrue.push(1)
         this.#callNewServer();
-        // console.log('dataQueryId', dataQueryId);
     }
 
     async #callNewServer() {
@@ -31,14 +29,17 @@ class CallServer {
         // console.log('this.linkWorkServers', this.linkWorkServers)
 
 
-        processingLoop: while (!finish) {
+        while (!finish) {
             try {
                 console.log('start start start start star start start start' + this.indexProcess)
                 // if (flag === 3) {
-                //     await this.linkWorkServers[0].close(() => {
+                //     this.linkWorkServers[0].close(() => {
                 //     })
+                //     await new Promise(resolve => setTimeout(resolve, 500));
+
                 //     console.log(`Сервер  зупинено ` + this.indexProcess);
                 // }
+                // await new Promise(resolve => setTimeout(resolve, 2000));
 
                 if (urlWorkServer.url !== "http://localhost:8000") {
                     console.log('TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT')
@@ -50,32 +51,32 @@ class CallServer {
                     break;
                 }
 
-                const { server } = this.nextServer.next();
+                // const { server } = this.nextServer.next();
                 // Якщо немає доступних серверів, припиняємо обробку
-                console.log('server', server + " " + this.indexProcess)
-                if (!server) {
+                console.log('server', this.workServer + " " + this.indexProcess)
+                if (!this.workServer) {
                     throw new Error('No available servers');
                 }
                 // console.log('this.controller.aborted', this.dataQueryId.controller.signal.aborted)
                 let res;
                 formData.append('idProcess', this.indexProcess);
-                // if (flag === 2) {
+                // if (flag === 5) {
                 //     knacked = true
                 //     console.log(`Сервер  зупинено ` + this.indexProcess);
 
-                //     res = await sendData(server + '45', formData, this.dataQueryId.controller, this.indexProcess)
+                //     res = await sendData(this.workServer + '45', formData, this.dataQueryId.controller, this.indexProcess)
                 //     console.log(`Сервер  зупинено ` + this.indexProcess);
 
                 // } else {
                 //     console.log('11111111111111111111111111111111111111111111111111 ' + this.indexProcess)
                 //     if (knacked) {
                 //         console.log('********************************************************')
-                //         console.log(server)
+                //         console.log(this.workServer)
                 //         console.log(formData)
                 //         console.log(this.dataQueryId.controller.signal.aborted)
                 //         console.log('********************************************************')
                 //     }
-                res = await sendData(server, formData, this.dataQueryId.controller, this.indexProcess)
+                res = await sendData(this.workServer, formData, this.dataQueryId.controller, this.indexProcess)
                 // }
                 // flag++
                 // console.log('222222222222222222222222222222222222222222222222222222 ' + this.indexProcess)
@@ -83,27 +84,26 @@ class CallServer {
                 if (res) {
                     // console.log('33333333333333333333333333333333333333333333333333 ' + this.indexProcess)
 
-                    const base64Data = res[0].imageBase64.replace(/^data:image\/jpeg;base64,/, '');
-                    const imageBuffer = Buffer.from(base64Data, 'base64');
-                    // CallServer.process[this.indexProcess]++
-                    this.dataQueryId.processedImages.push({ img: imageBuffer, name: res[0].fileName })
-                    // this.dataQueryId.processedImages.push(res)
+                    // CallServer.process[this.indexProcess]++;
+                    this.dataQueryId.processedImages.push({ res, name: res[0].fileName })
 
                     this.dataQueryId.progress += 1;
-                    ({ formData, index, finish } = this.generatorData.nextFormData())
-                    // console.log('444444444444444444444444444444444444444444444444444444444 ' + this.indexProcess)
+                    ({ formData, index, finish } = this.generatorData.nextFormData());
+                    console.log('444444444444444444444444444444444444444444444444444444444 ' + this.indexProcess)
 
                 } else {
                     // console.log('6666666666666666666666666666666666666666666666666666666666 ' + this.indexProcess)
-                    throw new Error('ошибка отправки на сервер')
-                    // this.generatorData.returnFormData(formData);
-                    // console.log('this.dataQueryId.serverPorts.urlPorts', this.dataQueryId.serverPorts.urlPorts)
+                    this.generatorData.returnFormData(formData);
+                    break
+
+                    // throw new Error('ошибка отправки на сервер');
+                    // console.log('this.dataQueryId.serverPorts.urlPorts', this.dataQueryId.serverPorts.urlPorts);
                     // this.nextServer.deleteErrorServer(server);
                     // continue processingLoop; // Пропустить сервер и перейти к следующему
-                    // console.log('this.dataQueryId.serverPorts.urlPorts', this.dataQueryId.serverPorts.urlPorts)
-                    // ({ formData, index, finish } = this.generatorData.nextFormData())
-                    // continue
-                    // this.#checkServersTrue()
+                    // console.log('this.dataQueryId.serverPorts.urlPorts', this.dataQueryId.serverPorts.urlPorts);
+                    // ({ formData, index, finish } = this.generatorData.nextFormData());
+                    // continue;
+                    // this.#checkServersTrue();
                     // break;
                 }
                 // console.log('55555555555555555555555555555555555555555555555555555555555555 ' + this.indexProcess)
@@ -114,7 +114,7 @@ class CallServer {
                 console.log(error)
                 // this.nextServer.deleteErrorServer(server);
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                // console.log('6666666666666666666666666666666666666666666666666666666666 ' + this.indexProcess)
+                // console.log('6666666666666666666611111111111111111111111111111666666666666666 ' + this.indexProcess)
                 // continue processingLoop; // Пропустить сервер и перейти к следующему
             }
 
@@ -130,15 +130,18 @@ class CallServer {
         // console.log('999999999999999999999999999999999999999999999999999999999999999 ' + this.indexProcess)
         try {
 
-            CallServer.isServersTrue[this.idQuery].pop();
-            console.log('CallServer.isServersTrue[this.idQuery]', CallServer.isServersTrue[this.idQuery])
+            this.dataQueryId.isServersTrue.pop()
+            // console.log('CallServer.isServersTrue[this.idQuery]', this.dataQueryId.isServersTrue)
+            const { finish } = this.generatorData.nextFormData()
 
-            if (CallServer.isServersTrue[this.idQuery].length === 0) {
+            if (this.dataQueryId.isServersTrue.length === 0) {
                 this.dataQueryId.serverPorts.returnPorts();
                 this.dataQueryId.linkWorkServers.forEach(server => server.close(() => console.log(`Сервер  зупинено`)));
                 this.dataQueryId.linkWorkServers.length = 0;
-
-                console.log('ServerPorts.ports**********************************', ServerPorts.freePorts)
+                if (!finish) {
+                    throw new Error('Помилка обробки даних не всі файли обробленр')
+                }
+                console.log('ServerPorts.ports', ServerPorts.freePorts)
                 // Перевіряємо існування вихідної директорії
 
                 if (!fs.existsSync(archiveDir)) {
@@ -153,7 +156,7 @@ class CallServer {
                 const id = this.idQuery.toString();
 
 
-                this.dataQueryId.progress = this.dataQueryId.total;
+                // this.dataQueryId.progress = this.dataQueryId.total;
                 const newArchivePath = path.join(archiveDir, `${id}_images_archive.zip`);//Папка для архіва з фото
                 const downloadLink = `${urlWorkServer.url}/archive/${id}_images_archive.zip`//Імя архів з фотографіями
                 this.dataQueryId.processingStatus = 'archive images';
